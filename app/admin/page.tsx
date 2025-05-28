@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"; // Added import
 import { Users, Package, DollarSign, TrendingUp, TrendingDown, ShoppingCart, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
@@ -42,6 +43,7 @@ export default function AdminDashboardPage() {
   const { data: sessionData, status } = useSession()
   const session = sessionData as SessionWithRole
   const { toast } = useToast()
+  const { resolvedTheme } = useTheme(); // Get resolved theme
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState({
     totalSales: 0,
@@ -86,6 +88,8 @@ export default function AdminDashboardPage() {
 
       try {
         setIsLoading(true)
+        // Simulate API delay for skeleton/loader
+        // await new Promise(resolve => setTimeout(resolve, 1500));
         const data = await apiService.getDashboardStats()
         setDashboardData(data)
       } catch (error) {
@@ -102,6 +106,18 @@ export default function AdminDashboardPage() {
     fetchDashboardData()
   }, [status, session, toast])
 
+  // Define theme-aware colors for chart text and grid lines
+  const tickAndLegendColor = resolvedTheme === 'dark' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--muted-foreground))'; // Should adapt
+  const gridLineColor = resolvedTheme === 'dark' ? 'hsl(var(--border))' : 'hsl(var(--border))'; // Should adapt
+
+  // Lilac color palette
+  const primaryLilac = "hsl(270, 70%, 75%)"; // Main lilac
+  const lightLilac = "hsl(270, 70%, 85%)";
+  const darkLilac = "hsl(270, 60%, 65%)";
+  const complementaryLilac1 = "hsl(280, 70%, 80%)";
+  const complementaryLilac2 = "hsl(260, 70%, 80%)";
+
+
   // Datos para el gráfico de ventas mensuales
   const salesChartData = {
     labels: dashboardData.salesByMonth.map((item) => item.month),
@@ -109,8 +125,8 @@ export default function AdminDashboardPage() {
       {
         label: "Ventas mensuales",
         data: dashboardData.salesByMonth.map((item) => item.sales),
-        borderColor: "hsl(var(--primary))",
-        backgroundColor: "hsl(var(--primary) / 0.1)",
+        borderColor: primaryLilac, // Use primaryLilac
+        backgroundColor: "hsla(270, 70%, 75%, 0.1)", // Use primaryLilac with alpha
         tension: 0.3,
         fill: true,
       },
@@ -128,8 +144,14 @@ export default function AdminDashboardPage() {
           dashboardData.ordersByStatus.delivered,
           dashboardData.ordersByStatus.cancelled,
         ],
-        backgroundColor: ["hsl(var(--chart-3))", "hsl(var(--chart-1))", "hsl(var(--chart-4))", "hsl(var(--chart-6))"],
+        backgroundColor: [
+          primaryLilac,
+          darkLilac,
+          lightLilac,
+          complementaryLilac1,
+        ], // Lilac palette for pie chart
         borderWidth: 1,
+        borderColor: resolvedTheme === 'dark' ? 'hsl(var(--background))' : 'hsl(var(--card))', // Border for segments
       },
     ],
   }
@@ -141,7 +163,9 @@ export default function AdminDashboardPage() {
       {
         label: "Unidades vendidas",
         data: dashboardData.topProducts.map((item) => item.sales),
-        backgroundColor: "hsl(var(--chart-2))",
+        backgroundColor: primaryLilac, // Use primaryLilac
+        borderColor: darkLilac, // Optional: border for bars
+        borderWidth: 1,
       },
     ],
   }
@@ -236,7 +260,7 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         <Card>
           <CardHeader>
-            <CardTitle>Ventas mensuales</CardTitle>
+            <CardTitle className="text-foreground">Ventas mensuales</CardTitle>
             <CardDescription>Ingresos por ventas durante los últimos 12 meses</CardDescription>
           </CardHeader>
           <CardContent>
@@ -250,18 +274,27 @@ export default function AdminDashboardPage() {
                     y: {
                       beginAtZero: true,
                       grid: {
-                        color: "hsl(var(--border) / 0.2)",
+                        color: gridLineColor, // Use theme-aware grid color
+                      },
+                      ticks: {
+                        color: tickAndLegendColor, // Use theme-aware tick color
                       },
                     },
                     x: {
                       grid: {
                         display: false,
                       },
+                      ticks: {
+                        color: tickAndLegendColor, // Use theme-aware tick color
+                      },
                     },
                   },
                   plugins: {
                     legend: {
                       display: false,
+                       labels: {
+                        color: tickAndLegendColor, // Set legend label color
+                      },
                     },
                   },
                 }}
@@ -272,7 +305,7 @@ export default function AdminDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Estado de pedidos</CardTitle>
+            <CardTitle className="text-foreground">Estado de pedidos</CardTitle>
             <CardDescription>Distribución de pedidos por estado</CardDescription>
           </CardHeader>
           <CardContent>
@@ -286,6 +319,9 @@ export default function AdminDashboardPage() {
                     plugins: {
                       legend: {
                         position: "bottom",
+                        labels: {
+                          color: tickAndLegendColor, // Use theme-aware legend label color
+                        },
                       },
                     },
                   }}
@@ -298,7 +334,7 @@ export default function AdminDashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Productos más vendidos</CardTitle>
+          <CardTitle className="text-foreground">Productos más vendidos</CardTitle>
           <CardDescription>Los 5 productos con mayor número de ventas</CardDescription>
         </CardHeader>
         <CardContent>
@@ -308,23 +344,32 @@ export default function AdminDashboardPage() {
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: "y" as const,
+                indexAxis: 'x', // Can be 'y' for horizontal bars
                 scales: {
                   x: {
-                    beginAtZero: true,
                     grid: {
-                      color: "hsl(var(--border) / 0.2)",
+                      display: false,
+                    },
+                    ticks: {
+                      color: tickAndLegendColor, // Use theme-aware tick color
                     },
                   },
                   y: {
+                    beginAtZero: true,
                     grid: {
-                      display: false,
+                      color: gridLineColor, // Use theme-aware grid color
+                    },
+                    ticks: {
+                      color: tickAndLegendColor, // Use theme-aware tick color
                     },
                   },
                 },
                 plugins: {
                   legend: {
-                    display: false,
+                    display: true, // Or false if only one dataset
+                    labels: {
+                      color: tickAndLegendColor, // Use theme-aware legend label color
+                    },
                   },
                 },
               }}

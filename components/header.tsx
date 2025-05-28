@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { ShoppingCart, Menu, X, User, LogOut, Package, Home, ChevronDown, Laptop, LayoutDashboard } from "lucide-react"
+import { ShoppingCart, Menu, X, User, LogOut, Package, Home, ChevronDown, Laptop, LayoutDashboard, Settings, Users, ListOrdered } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -18,9 +18,17 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useCartStore } from "@/stores/cart-store"
 import { cn } from "@/lib/utils"
+import { ModeToggle } from "./button-theme"
+
+type SessionUser = {
+  name?: string | null
+  email?: string | null
+  image?: string | null
+  role?: string | null
+}
 
 export function Header() {
-  const { data: session } = useSession()
+  const { data: session } = useSession<{ user: SessionUser }>()
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const cartItems = useCartStore((state) => state.items)
@@ -35,10 +43,12 @@ export function Header() {
   ]
 
   const adminNavigation = [
-    { name: "Dashboard", href: "/admin" },
-    { name: "Productos", href: "/admin/products" },
-    { name: "Pedidos", href: "/admin/orders" },
-    { name: "Usuarios", href: "/admin/users" },
+    { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { name: "Productos", href: "/admin/products", icon: Package },
+    { name: "Pedidos", href: "/admin/orders", icon: ListOrdered },
+    { name: "Usuarios", href: "/admin/users", icon: Users },
+    // Example for a settings page, if you add one
+    // { name: "Configuración", href: "/admin/settings", icon: Settings },
   ]
 
   const getUserInitials = (name: string | null | undefined) => {
@@ -62,7 +72,7 @@ export function Header() {
             </Link>
 
             {/* Desktop navigation */}
-            <nav className="hidden md:ml-10 md:flex md:space-x-8">
+            <nav className="hidden md:ml-10 md:flex md:space-x-8 items-center"> {/* Added items-center for vertical alignment if needed */}
               {navigation.map((item) => (
                 <Link
                   key={item.name}
@@ -79,15 +89,21 @@ export function Header() {
               {isAdmin && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-1 px-0">
-                      <span className="text-sm font-medium">Admin</span>
-                      <ChevronDown className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      className="flex items-center px-0 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      Admin
+                      <ChevronDown className="h-4 w-4 ml-1" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {adminNavigation.map((item) => (
                       <DropdownMenuItem key={item.name} asChild>
-                        <Link href={item.href}>{item.name}</Link>
+                        <Link href={item.href} className="flex items-center">
+                          <item.icon className="mr-2 h-4 w-4" />
+                          <span>{item.name}</span>
+                        </Link>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -97,6 +113,7 @@ export function Header() {
           </div>
 
           <div className="flex items-center space-x-4">
+            <ModeToggle /> {/* Moved here */}
             <Link href="/cart" className="relative">
               <ShoppingCart className="h-6 w-6" />
               {cartItemCount > 0 && (
@@ -201,10 +218,7 @@ export function Header() {
                           className="flex items-center py-2 text-base font-medium text-muted-foreground transition-colors hover:text-primary"
                           onClick={() => setIsOpen(false)}
                         >
-                          {item.name === "Dashboard" && <LayoutDashboard className="mr-2 h-5 w-5" />}
-                          {item.name === "Productos" && <Package className="mr-2 h-5 w-5" />}
-                          {item.name === "Pedidos" && <Package className="mr-2 h-5 w-5" />}
-                          {item.name === "Usuarios" && <User className="mr-2 h-5 w-5" />}
+                          <item.icon className="mr-2 h-5 w-5" />
                           {item.name}
                         </Link>
                       ))}
