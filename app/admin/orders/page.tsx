@@ -22,12 +22,11 @@ export default function AdminOrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [sortBy, setSortBy] = useState<string>("date-desc")
-
-  // Verificar si el usuario es administrador
+  const [sortBy, setSortBy] = useState<string>("date-desc")  // Verificar si el usuario es administrador
   useEffect(() => {
     if (status === "authenticated") {
-      if (session?.user?.role !== "admin") {
+      const userRole = (session as any)?.user?.role;
+      if (userRole !== "admin") {
         toast({
           variant: "destructive",
           title: "Acceso denegado",
@@ -43,18 +42,49 @@ export default function AdminOrdersPage() {
   // Inicializar datos de prueba
   useEffect(() => {
     apiService.init()
-  }, [])
-
-  // Cargar pedidos
+  }, [])  // Cargar pedidos
   useEffect(() => {
     const fetchOrders = async () => {
-      if (status !== "authenticated" || session?.user?.role !== "admin") return
+      if (status !== "authenticated") return
+      
+      const userRole = (session as any)?.user?.role;
+      if (userRole !== "admin") return
 
       try {
         setIsLoading(true)
-        const data = await apiService.getOrders()
-        setOrders(data)
-        setFilteredOrders(data)
+        
+        // Cargar pedidos de prueba de la API
+        const apiOrders = await apiService.getOrders()
+        
+        // Cargar pedidos reales del localStorage
+        const localStorageOrders = JSON.parse(localStorage.getItem('orders') || '[]')
+        
+        // Transformar pedidos del localStorage al formato esperado
+        const transformedLocalOrders = localStorageOrders.map((order: any) => ({
+          id: order.id,
+          userId: order.userId,
+          userName: order.userId, // Como no tenemos el nombre, usamos el email
+          userEmail: order.userId,
+          date: order.createdAt, // Usar createdAt del localStorage
+          status: order.status === 'completed' ? 'delivered' : order.status,
+          total: order.total,
+          items: order.items,
+          shippingDetails: {
+            name: order.paymentDetails?.cardName || "Cliente",
+            email: order.userId,
+            address: "Dirección no disponible",
+            city: "Ciudad no disponible", 
+            state: "Estado no disponible",
+            postalCode: "00000",
+            country: "Bolivia"
+          }
+        }))
+        
+        // Combinar ambas fuentes de datos
+        const allOrders = [...apiOrders, ...transformedLocalOrders]
+        
+        setOrders(allOrders)
+        setFilteredOrders(allOrders)
       } catch (error) {
         toast({
           variant: "destructive",
@@ -68,6 +98,61 @@ export default function AdminOrdersPage() {
 
     fetchOrders()
   }, [status, session, toast])
+
+  // Escuchar cambios en localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // Recargar pedidos cuando cambien en localStorage
+      if (status === "authenticated" && session?.user?.email === "admin@example.com") {
+        fetchOrders()
+      }
+    }
+
+    const fetchOrders = async () => {
+      try {
+        // Cargar pedidos de prueba de la API
+        const apiOrders = await apiService.getOrders()
+        
+        // Cargar pedidos reales del localStorage
+        const localStorageOrders = JSON.parse(localStorage.getItem('orders') || '[]')
+        
+        // Transformar pedidos del localStorage al formato esperado
+        const transformedLocalOrders = localStorageOrders.map((order: any) => ({
+          id: order.id,
+          userId: order.userId,
+          userName: order.userId,
+          userEmail: order.userId,
+          date: order.createdAt,
+          status: order.status === 'completed' ? 'delivered' : order.status,
+          total: order.total,
+          items: order.items,
+          shippingDetails: {
+            name: order.paymentDetails?.cardName || "Cliente",
+            email: order.userId,
+            address: "Dirección no disponible",
+            city: "Ciudad no disponible", 
+            state: "Estado no disponible",
+            postalCode: "00000",
+            country: "Bolivia"
+          }
+        }))
+        
+        // Combinar ambas fuentes de datos
+        const allOrders = [...apiOrders, ...transformedLocalOrders]
+        
+        setOrders(allOrders)
+        setFilteredOrders(allOrders)
+      } catch (error) {
+        console.error('Error al recargar pedidos:', error)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [status, session])
 
   // Filtrar y ordenar pedidos
   useEffect(() => {
@@ -142,14 +227,35 @@ export default function AdminOrdersPage() {
         return <Badge variant="outline">{status}</Badge>
     }
   }
-
   // Función para formatear fecha
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("es", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) {
+        // Si la fecha no es válida, intentar parsearlo como timestamp
+        const timestamp = parseInt(dateString)
+        if (!isNaN(timestamp)) {
+          return new Date(timestamp).toLocaleDateString("es", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+          })
+        }
+        return "Fecha inválida"
+      }
+      
+      return date.toLocaleDateString("es", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    } catch (error) {
+      return "Fecha inválida"
+    }
   }
 
   if (isLoading) {
@@ -243,8 +349,8 @@ export default function AdminOrdersPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredOrders.map((order) => (
-                    <TableRow key={order.id}>
+                  filteredOrders.map((order, index) => (
+                    <TableRow key={`${order.id}-${index}`}>  
                       <TableCell className="font-medium">{order.id}</TableCell>
                       <TableCell>
                         <div>

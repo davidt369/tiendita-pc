@@ -124,7 +124,13 @@ export default function CartPage() {
                           </Button>
                         </div>
                         <div className="flex items-center space-x-4">
-                          <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+<span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+                          {/* Display Bs price if exchangeRate is available */}
+                          {localStorage.getItem('exchangeRate') && (
+                            <span className="font-semibold text-green-600">
+                              {` ${ (item.price * parseFloat(localStorage.getItem('exchangeRate')!)).toFixed(2)} Bs`}
+                            </span>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -172,7 +178,13 @@ export default function CartPage() {
               <div className="pt-4 border-t">
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span>${getTotal().toFixed(2)}</span>
+<span>${getTotal().toFixed(2)}</span>
+                  {/* Display Bs price if exchangeRate is available */}
+                  {localStorage.getItem('exchangeRate') && (
+                    <span className="font-semibold text-green-600">
+                      {` ${ (getTotal() * parseFloat(localStorage.getItem('exchangeRate')!)).toFixed(2)} Bs`}
+                    </span>
+                  )}
                 </div>
               </div>
 

@@ -29,6 +29,46 @@ export function ProductRecommendation({
   const [products, setProducts] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // Estado para el tipo de cambio
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null)
+
+  // Efecto para leer el tipo de cambio desde localStorage
+  useEffect(() => {
+    const loadExchangeRate = () => {
+      const storedRate = localStorage.getItem('exchangeRate')
+      if (storedRate) {
+        const numericRate = parseFloat(storedRate)
+        if (!isNaN(numericRate)) {
+          setExchangeRate(numericRate)
+        }
+      }
+    }
+
+    // Cargar el tipo de cambio inicial
+    loadExchangeRate()
+
+    // Escuchar cambios en localStorage (cuando se actualiza desde el admin)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'exchangeRate') {
+        loadExchangeRate()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    // También escuchar cambios en la misma pestaña usando un evento personalizado
+    const handleCustomStorageChange = () => {
+      loadExchangeRate()
+    }
+
+    window.addEventListener('exchangeRateChanged', handleCustomStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('exchangeRateChanged', handleCustomStorageChange)
+    }
+  }, [])
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -148,10 +188,16 @@ export function ProductRecommendation({
                   fill
                   className="object-contain p-4"
                 />
-              </div>
-              <CardContent className="p-4">
+              </div>              <CardContent className="p-4">
                 <h3 className="font-medium line-clamp-2 mb-1 h-12">{product.nombre}</h3>
-                <div className="text-lg font-bold">${product.precio.toFixed(2)}</div>
+                <div className="space-y-1">
+                  <div className="text-lg font-bold">${product.precio.toFixed(2)} USD</div>
+                  {exchangeRate && (
+                    <div className="text-md font-semibold text-green-600">
+                      {(product.precio * exchangeRate).toFixed(2)} Bs.
+                    </div>
+                  )}
+                </div>
               </CardContent>
               <CardFooter className="p-4 pt-0 flex justify-between">
                 <Button variant="outline" asChild>

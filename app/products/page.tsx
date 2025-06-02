@@ -35,7 +35,7 @@ import { mockData } from "@/lib/mock-data"
 import { apiService } from "@/lib/api-service"
 
 // Tipos para los productos
-type ProductType = "cpu" | "gpu" | "ram" | "motherboard" | "storage" | "psu" | "case" | "peripheral"
+export type ProductType = "cpu" | "gpu" | "ram" | "motherboard" | "storage" | "psu" | "case" | "peripheral"
 
 interface Product {
   id: number
@@ -97,6 +97,46 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+
+  // Estado para el tipo de cambio
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null)
+
+  // Efecto para leer el tipo de cambio desde localStorage
+  useEffect(() => {
+    const loadExchangeRate = () => {
+      const storedRate = localStorage.getItem('exchangeRate')
+      if (storedRate) {
+        const numericRate = parseFloat(storedRate)
+        if (!isNaN(numericRate)) {
+          setExchangeRate(numericRate)
+        }
+      }
+    }
+
+    // Cargar el tipo de cambio inicial
+    loadExchangeRate()
+
+    // Escuchar cambios en localStorage (cuando se actualiza desde el admin)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'exchangeRate') {
+        loadExchangeRate()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    // También escuchar cambios en la misma pestaña usando un evento personalizado
+    const handleCustomStorageChange = () => {
+      loadExchangeRate()
+    }
+
+    window.addEventListener('exchangeRateChanged', handleCustomStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('exchangeRateChanged', handleCustomStorageChange)
+    }
+  }, [])
 
   // Estado para los filtros
   const [searchTerm, setSearchTerm] = useState("")
@@ -536,11 +576,17 @@ export default function ProductsPage() {
                           <span className="ml-1">{getProductTypeName(product.tipo)}</span>
                         </div>
                       </div>
-                    </div>
-                    <CardContent className="p-4">
+                    </div>                    <CardContent className="p-4">
                       <div className="mb-1 text-xs text-muted-foreground">{product.marca}</div>
                       <h3 className="font-medium line-clamp-2 mb-1 h-12">{product.nombre}</h3>
-                      <div className="text-lg font-bold">${product.precio.toFixed(2)}</div>
+                      <div className="space-y-1">
+<div className="text-lg font-bold">${product.precio.toFixed(2)} USD</div>
+                        {exchangeRate && (
+                          <div className="text-md font-semibold text-green-600">
+                            {(product.precio * exchangeRate).toFixed(2)} Bs.
+                          </div>
+                        )}
+                      </div>
                     </CardContent>
                     <CardFooter className="p-4 pt-0 flex justify-between">
                       <Button variant="outline" asChild>

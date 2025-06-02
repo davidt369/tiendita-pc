@@ -8,6 +8,7 @@ import { Users, Package, DollarSign, TrendingUp, TrendingDown, ShoppingCart, Loa
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api-service"
+import ExchangeRateManager from '@/components/admin/ExchangeRateManager';
 
 // Importar componentes de gráficos
 import {
@@ -181,96 +182,183 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="container mx-auto py-16 px-4">
-      <h1 className="text-3xl font-bold mb-8">Dashboard Administrativo</h1>
+     
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight">Panel de Administración</h2>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Ventas totales</p>
-                <h3 className="text-2xl font-bold">${dashboardData.totalSales.toLocaleString()}</h3>
-                <p className="text-sm text-green-500 flex items-center mt-1">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  +12.5% vs mes anterior
-                </p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Ventas totales</p>
+                  <h3 className="text-2xl font-bold">${dashboardData.totalSales.toLocaleString()}</h3>
+                  <p className="text-sm text-green-500 flex items-center mt-1">
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    +12.5% vs mes anterior
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-primary" />
+                </div>
               </div>
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Pedidos totales</p>
-                <h3 className="text-2xl font-bold">{dashboardData.totalOrders}</h3>
-                <p className="text-sm text-green-500 flex items-center mt-1">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  +8.2% vs mes anterior
-                </p>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Pedidos totales</p>
+                  <h3 className="text-2xl font-bold">{dashboardData.totalOrders}</h3>
+                  <p className="text-sm text-green-500 flex items-center mt-1">
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    +8.2% vs mes anterior
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Package className="h-6 w-6 text-primary" />
+                </div>
               </div>
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Package className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Usuarios registrados</p>
-                <h3 className="text-2xl font-bold">{dashboardData.totalUsers}</h3>
-                <p className="text-sm text-green-500 flex items-center mt-1">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  +5.3% vs mes anterior
-                </p>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Usuarios registrados</p>
+                  <h3 className="text-2xl font-bold">{dashboardData.totalUsers}</h3>
+                  <p className="text-sm text-green-500 flex items-center mt-1">
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    +5.3% vs mes anterior
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
               </div>
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Valor promedio</p>
-                <h3 className="text-2xl font-bold">${dashboardData.averageOrderValue.toFixed(2)}</h3>
-                <p className="text-sm text-red-500 flex items-center mt-1">
-                  <TrendingDown className="h-4 w-4 mr-1" />
-                  -2.1% vs mes anterior
-                </p>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Valor promedio</p>
+                  <h3 className="text-2xl font-bold">${dashboardData.averageOrderValue.toFixed(2)}</h3>
+                  <p className="text-sm text-red-500 flex items-center mt-1">
+                    <TrendingDown className="h-4 w-4 mr-1" />
+                    -2.1% vs mes anterior
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <ShoppingCart className="h-6 w-6 text-primary" />
+                </div>
               </div>
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <ShoppingCart className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">Ventas mensuales</CardTitle>
+              <CardDescription>Ingresos por ventas durante los últimos 12 meses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <Line
+                  data={salesChartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        grid: {
+                          color: gridLineColor, // Use theme-aware grid color
+                        },
+                        ticks: {
+                          color: tickAndLegendColor, // Use theme-aware tick color
+                        },
+                      },
+                      x: {
+                        grid: {
+                          display: false,
+                        },
+                        ticks: {
+                          color: tickAndLegendColor, // Use theme-aware tick color
+                        },
+                      },
+                    },
+                    plugins: {
+                      legend: {
+                        display: false,
+                         labels: {
+                          color: tickAndLegendColor, // Set legend label color
+                        },
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">Estado de pedidos</CardTitle>
+              <CardDescription>Distribución de pedidos por estado</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80 flex items-center justify-center">
+                <div className="h-64 w-64">
+                  <Pie
+                    data={orderStatusChartData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: "bottom",
+                          labels: {
+                            color: tickAndLegendColor, // Use theme-aware legend label color
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
-            <CardTitle className="text-foreground">Ventas mensuales</CardTitle>
-            <CardDescription>Ingresos por ventas durante los últimos 12 meses</CardDescription>
+            <CardTitle className="text-foreground">Productos más vendidos</CardTitle>
+            <CardDescription>Los 5 productos con mayor número de ventas</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              <Line
-                data={salesChartData}
+              <Bar
+                data={topProductsChartData}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
+                  indexAxis: 'x', // Can be 'y' for horizontal bars
                   scales: {
+                    x: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: tickAndLegendColor, // Use theme-aware tick color
+                      },
+                    },
                     y: {
                       beginAtZero: true,
                       grid: {
@@ -280,20 +368,12 @@ export default function AdminDashboardPage() {
                         color: tickAndLegendColor, // Use theme-aware tick color
                       },
                     },
-                    x: {
-                      grid: {
-                        display: false,
-                      },
-                      ticks: {
-                        color: tickAndLegendColor, // Use theme-aware tick color
-                      },
-                    },
                   },
                   plugins: {
                     legend: {
-                      display: false,
-                       labels: {
-                        color: tickAndLegendColor, // Set legend label color
+                      display: true, // Or false if only one dataset
+                      labels: {
+                        color: tickAndLegendColor, // Use theme-aware legend label color
                       },
                     },
                   },
@@ -303,80 +383,11 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-foreground">Estado de pedidos</CardTitle>
-            <CardDescription>Distribución de pedidos por estado</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80 flex items-center justify-center">
-              <div className="h-64 w-64">
-                <Pie
-                  data={orderStatusChartData}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: {
-                        position: "bottom",
-                        labels: {
-                          color: tickAndLegendColor, // Use theme-aware legend label color
-                        },
-                      },
-                    },
-                  }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Nueva Sección de Tipo de Cambio al final y más ancha */}
+        <div className="mt-12 mb-8 col-span-1 lg:col-span-2 mx-auto w-full max-w-2xl"> 
+          <ExchangeRateManager />
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-foreground">Productos más vendidos</CardTitle>
-          <CardDescription>Los 5 productos con mayor número de ventas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <Bar
-              data={topProductsChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'x', // Can be 'y' for horizontal bars
-                scales: {
-                  x: {
-                    grid: {
-                      display: false,
-                    },
-                    ticks: {
-                      color: tickAndLegendColor, // Use theme-aware tick color
-                    },
-                  },
-                  y: {
-                    beginAtZero: true,
-                    grid: {
-                      color: gridLineColor, // Use theme-aware grid color
-                    },
-                    ticks: {
-                      color: tickAndLegendColor, // Use theme-aware tick color
-                    },
-                  },
-                },
-                plugins: {
-                  legend: {
-                    display: true, // Or false if only one dataset
-                    labels: {
-                      color: tickAndLegendColor, // Use theme-aware legend label color
-                    },
-                  },
-                },
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

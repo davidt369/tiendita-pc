@@ -1,360 +1,256 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Loader2, CreditCard } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Loader2, CreditCard } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/hooks/use-toast"
-import { useCartStore } from "@/stores/cart-store"
-import { api } from "@/lib/api"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { useCartStore } from "@/stores/cart-store";
+import { OrderService } from "@/lib/services/order-service";
 
 const checkoutSchema = z.object({
-  name: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres" }),
-  email: z.string().email({ message: "Ingresa un correo electrónico válido" }),
-  address: z.string().min(5, { message: "La dirección debe tener al menos 5 caracteres" }),
-  city: z.string().min(2, { message: "La ciudad es requerida" }),
-  state: z.string().min(2, { message: "El estado/provincia es requerido" }),
-  postalCode: z.string().min(3, { message: "El código postal es requerido" }),
-  country: z.string().min(2, { message: "El país es requerido" }),
-  paymentMethod: z.enum(["credit", "debit", "paypal"]),
-  cardNumber: z.string().optional(),
-  cardName: z.string().optional(),
-  cardExpiry: z.string().optional(),
-  cardCvc: z.string().optional(),
-})
+  cardNumber: z.string().refine(
+    (val) => val.replace(/\s/g, "").length === 16,
+    { message: "Número de tarjeta debe tener 16 dígitos" }
+  ),
+  cardName: z.string().min(3, { message: "Nombre en la tarjeta es requerido" }),
+  cardExpiry: z.string().regex(/^(0[1-9]|1[0-2])\/([0-9]{2})$/, { message: "Formato debe ser MM/YY" }),
+  cardCvc: z.string().regex(/^\d{3,4}$/, { message: "CVC inválido" })
+});
 
-type CheckoutFormValues = z.infer<typeof checkoutSchema>
+type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 export default function CheckoutPage() {
-  const router = useRouter()
-  const { data: session } = useSession()
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
-  const { items, getTotal, clearCart } = useCartStore()
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const { items, getTotal, clearCart } = useCartStore();
 
-  // Redirigir si no hay sesión o el carrito está vacío
-  if (typeof window !== "undefined") {
-    if (!session) {
-      router.push("/auth/login")
-    } else if (items.length === 0) {
-      router.push("/cart")
+  useEffect(() => {
+    setIsClient(true);
+    const rate = localStorage.getItem('exchangeRate');
+    if (rate) {
+      setExchangeRate(parseFloat(rate));
     }
-  }
+
+    const handleExchangeRateChange = () => {
+      const newRate = localStorage.getItem('exchangeRate');
+      if (newRate) {
+        setExchangeRate(parseFloat(newRate));
+      }
+    };
+
+    window.addEventListener('exchangeRateChanged', handleExchangeRateChange);
+    return () => {
+      window.removeEventListener('exchangeRateChanged', handleExchangeRateChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isClient && status !== "loading") {
+      if (!session) {
+        router.push("/auth/login");
+      } else if (items.length === 0) {
+        router.push("/cart");
+      }
+    }
+  }, [isClient, items.length, router, session, status]);
 
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      name: session?.user?.name || "",
-      email: session?.user?.email || "",
-      address: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "",
-      paymentMethod: "credit",
+      cardNumber: "",
+      cardName: "",
+      cardExpiry: "",
+      cardCvc: "",
     },
-  })
+  });
 
-  const paymentMethod = form.watch("paymentMethod")
+  if (!isClient || status === "loading" || !session || items.length === 0) {
+    return null;
+  }
 
+  const total = getTotal() + 10 + getTotal() * 0.16;
   async function onSubmit(data: CheckoutFormValues) {
-    setIsLoading(true)
-
+    setIsLoading(true);
     try {
-      // En un entorno real, esto sería una llamada a la API para procesar el pago y crear el pedido
-      await api.post("/api/orders", {
-        items,
-        total: getTotal(),
-        shippingDetails: {
-          name: data.name,
-          email: data.email,
-          address: data.address,
-          city: data.city,
-          state: data.state,
-          postalCode: data.postalCode,
-          country: data.country,
-        },
-        paymentMethod: data.paymentMethod,
-      })
+      if (!session?.user?.email) {
+        throw new Error('No se pudo identificar el usuario');
+      }
 
-      // Simular un retraso para mostrar el estado de carga
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Crear el pedido con todos los datos necesarios
+      const orderData = {
+        userId: session.user.email,
+        items: items.map(item => ({
+          id: String(item.id),
+          type: item.type,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        })),
+        total,
+        paymentDetails: {
+          cardNumber: data.cardNumber.replace(/\s/g, ""),
+          cardName: data.cardName,
+          cardExpiry: data.cardExpiry,
+        }
+      };
 
-      // Limpiar el carrito después de un pedido exitoso
-      clearCart()
+      console.log('Creando pedido:', orderData);
+      
+      const createdOrder = await OrderService.createOrder(orderData);
+      
+      console.log('Pedido creado exitosamente:', createdOrder);
 
+      // Limpiar el carrito después de crear el pedido exitosamente
+      clearCart();
+      
       toast({
-        title: "¡Pedido realizado con éxito!",
-        description: "Recibirás un correo electrónico con los detalles de tu pedido.",
-      })
-
-      router.push("/checkout/success")
+        title: "¡Pago exitoso!",
+        description: "Tu pedido ha sido procesado correctamente y guardado en tu perfil.",
+      });
+      
+      router.push("/checkout/success");
     } catch (error) {
+      console.error('Error en checkout:', error);
       toast({
         variant: "destructive",
-        title: "Error al procesar el pedido",
-        description: "Ocurrió un error al procesar tu pedido. Por favor, inténtalo de nuevo.",
-      })
+        title: "Error en el pago",
+        description: "No se pudo procesar el pago. Por favor, intenta de nuevo.",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   return (
-    <div className="container mx-auto py-16 px-4">
+    <main className="container mx-auto py-16 px-4">
       <h1 className="text-3xl font-bold mb-8">Finalizar compra</h1>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Información de envío y pago</CardTitle>
-              <CardDescription>Completa los detalles para procesar tu pedido</CardDescription>
+              <CardTitle>Información de pago</CardTitle>
+              <CardDescription>Ingresa los datos de tu tarjeta para completar la compra</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Información de contacto</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nombre completo</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Juan Pérez" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Correo electrónico</FormLabel>
-                            <FormControl>
-                              <Input placeholder="tu@email.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Dirección de envío</h3>
-                    <FormField
-                      control={form.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Dirección</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Calle y número" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Ciudad</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ciudad" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="state"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Estado/Provincia</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Estado o provincia" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="postalCode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Código postal</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Código postal" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="country"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>País</FormLabel>
-                            <FormControl>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecciona un país" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="argentina">Argentina</SelectItem>
-                                  <SelectItem value="chile">Chile</SelectItem>
-                                  <SelectItem value="colombia">Colombia</SelectItem>
-                                  <SelectItem value="mexico">México</SelectItem>
-                                  <SelectItem value="peru">Perú</SelectItem>
-                                  <SelectItem value="espana">España</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Método de pago</h3>
-                    <FormField
-                      control={form.control}
-                      name="paymentMethod"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col space-y-2"
-                            >
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="credit" id="credit" />
-                                <FormLabel htmlFor="credit" className="cursor-pointer">
-                                  Tarjeta de crédito
-                                </FormLabel>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="debit" id="debit" />
-                                <FormLabel htmlFor="debit" className="cursor-pointer">
-                                  Tarjeta de débito
-                                </FormLabel>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="paypal" id="paypal" />
-                                <FormLabel htmlFor="paypal" className="cursor-pointer">
-                                  PayPal
-                                </FormLabel>
-                              </div>
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {(paymentMethod === "credit" || paymentMethod === "debit") && (
-                      <Tabs defaultValue="card" className="w-full">
-                        <TabsList className="grid w-full grid-cols-1">
-                          <TabsTrigger value="card">Detalles de la tarjeta</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="card" className="space-y-4 mt-4">
-                          <FormField
-                            control={form.control}
-                            name="cardNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Número de tarjeta</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="1234 5678 9012 3456" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
+                  <FormField
+                    control={form.control}
+                    name="cardNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número de tarjeta</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="4111 1111 1111 1111" 
+                            {...field} 
+                            maxLength={19}
+                            onChange={(e) => {                              const value = e.target.value.replace(/\s/g, "");
+                              const formatted = value.length > 0 
+                                ? value.match(/.{1,4}/g)?.join(" ") || value
+                                : value;
+                              field.onChange(formatted);
+                            }}
                           />
-                          <FormField
-                            control={form.control}
-                            name="cardName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Nombre en la tarjeta</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="JUAN PEREZ" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="cardExpiry"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Fecha de expiración</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="MM/AA" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="cardCvc"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>CVC</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="123" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </TabsContent>
-                      </Tabs>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="cardName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre en la tarjeta</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="JUAN PEREZ" 
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="cardExpiry"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Fecha de expiración</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="MM/YY" 
+                              {...field}
+                              maxLength={5}
+                              onChange={(e) => {
+                                let value = e.target.value.replace(/\D/g, "");
+                                if (value.length >= 2) {
+                                  value = value.slice(0, 2) + "/" + value.slice(2);
+                                }
+                                field.onChange(value);
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cardCvc"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CVC</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="123" 
+                              {...field}
+                              type="password"
+                              maxLength={4}
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Procesando pedido...
+                        Procesando pago...
                       </>
                     ) : (
                       <>
                         <CreditCard className="mr-2 h-4 w-4" />
-                        Completar compra
+                        Pagar ${total.toFixed(2)}
+                        {exchangeRate && (
+                          <span className="ml-1">
+                            ({(total * exchangeRate).toFixed(2)} Bs)
+                          </span>
+                        )}
                       </>
                     )}
                   </Button>
@@ -378,7 +274,14 @@ export default function CheckoutPage() {
                       <span className="text-sm text-muted-foreground">
                         {item.quantity} x {item.name}
                       </span>
-                      <span className="text-sm">${(item.price * item.quantity).toFixed(2)}</span>
+                      <div className="text-right">
+                        <div className="text-sm">${(item.price * item.quantity).toFixed(2)}</div>
+                        {exchangeRate && (
+                          <div className="text-xs text-muted-foreground">
+                            {(item.price * item.quantity * exchangeRate).toFixed(2)} Bs
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -387,28 +290,56 @@ export default function CheckoutPage() {
               <div className="pt-4 border-t space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${getTotal().toFixed(2)}</span>
+                  <div className="text-right">
+                    <div>${getTotal().toFixed(2)}</div>
+                    {exchangeRate && (
+                      <div className="text-xs text-muted-foreground">
+                        {(getTotal() * exchangeRate).toFixed(2)} Bs
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Envío</span>
-                  <span>$10.00</span>
+                  <div className="text-right">
+                    <div>$10.00</div>
+                    {exchangeRate && (
+                      <div className="text-xs text-muted-foreground">
+                        {(10 * exchangeRate).toFixed(2)} Bs
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Impuestos</span>
-                  <span>${(getTotal() * 0.16).toFixed(2)}</span>
+                  <span className="text-muted-foreground">IVA (16%)</span>
+                  <div className="text-right">
+                    <div>${(getTotal() * 0.16).toFixed(2)}</div>
+                    {exchangeRate && (
+                      <div className="text-xs text-muted-foreground">
+                        {(getTotal() * 0.16 * exchangeRate).toFixed(2)} Bs
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="pt-4 border-t">
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total</span>
-                  <span>${(getTotal() + 10 + getTotal() * 0.16).toFixed(2)}</span>
+                <div className="flex justify-between">
+                  <span className="font-bold">Total</span>
+                  <div className="text-right">
+                    <div className="font-bold">${total.toFixed(2)}</div>
+                    {exchangeRate && (
+                      <div className="text-sm font-semibold text-green-600">
+                        {(total * exchangeRate).toFixed(2)} Bs
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
-  )
+    </main>
+  );
 }

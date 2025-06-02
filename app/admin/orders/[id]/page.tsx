@@ -303,12 +303,12 @@ export default function AdminOrderDetailPage() {
                 <div>
                   <h3 className="font-medium mb-4">Productos</h3>
                   <div className="divide-y">
-                    {order.items.map((item) => (
-                      <div key={`${item.type}-${item.id}`} className="flex py-4">
+                    {order.items.map((item, index) => (
+                      <div key={item.id ? `${item.type}-${item.id}` : `item-${index}`} className="flex py-4">
                         <div className="h-20 w-20 relative flex-shrink-0 mr-4">
                           <Image
                             src={item.image || "/placeholder.svg?height=80&width=80"}
-                            alt={item.name}
+                            alt={item.name || "Product image"}
                             fill
                             className="object-contain"
                           />
@@ -335,13 +335,13 @@ export default function AdminOrderDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                <p className="font-medium">{order.shippingDetails.name}</p>
-                <p>{order.shippingDetails.address}</p>
+                <p className="font-medium">{order.shippingDetails?.name}</p>
+                <p>{order.shippingDetails?.address}</p>
                 <p>
-                  {order.shippingDetails.city}, {order.shippingDetails.state} {order.shippingDetails.postalCode}
+                  {order.shippingDetails?.city}, {order.shippingDetails?.state} {order.shippingDetails?.postalCode}
                 </p>
-                <p>{order.shippingDetails.country}</p>
-                <p className="text-muted-foreground">{order.shippingDetails.email}</p>
+                <p>{order.shippingDetails?.country}</p>
+                <p className="text-muted-foreground">{order.shippingDetails?.email}</p>
               </div>
             </CardContent>
           </Card>

@@ -694,11 +694,29 @@ export const apiService = {
     const totalUsers = users.length
     const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0
 
-    // Ventas por mes (últimos 12 meses)
-    const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-    const salesByMonth = months.map((month, index) => {
-      const sales = Math.floor(Math.random() * 3000) + 1000 // Datos aleatorios para demostración
-      return { month, sales }
+    // Ventas por mes (últimos 12 meses) basadas en datos reales de pedidos
+    const monthLabels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    const now = new Date()
+    // Inicializar mapa de ventas para cada mes
+    const salesMap: Record<string, number> = {}
+    for (let i = 11; i >= 0; i--) {
+      const dateKey = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${dateKey.getFullYear()}-${dateKey.getMonth()}`
+      salesMap[key] = 0
+    }
+    // Sumar ventas reales de pedidos
+    orders.forEach(order => {
+      const d = new Date(order.date)
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      if (key in salesMap) salesMap[key] += order.total
+    })
+    // Formatear arreglo de ventas por mes
+    const salesByMonth = Object.keys(salesMap).map(key => {
+      const [year, monthIndex] = key.split('-').map(Number)
+      return {
+        month: monthLabels[monthIndex],
+        sales: salesMap[key]
+      }
     })
 
     // Pedidos por estado
@@ -709,14 +727,18 @@ export const apiService = {
       cancelled: orders.filter((o) => o.status === "cancelled").length,
     }
 
-    // Productos más vendidos
-    const topProducts = [
-      { name: "NVIDIA GeForce RTX 4070 Ti", sales: 28 },
-      { name: "Intel Core i7-13700K", sales: 24 },
-      { name: "AMD Ryzen 7 7700X", sales: 22 },
-      { name: "Corsair Vengeance RGB Pro 32GB", sales: 19 },
-      { name: "MSI MPG Z790 Gaming Edge WiFi", sales: 17 },
-    ]
+    // Productos más vendidos basados en cantidad de ítems en los pedidos
+    const productSalesMap: Record<string, number> = {}
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        const name = item.name
+        productSalesMap[name] = (productSalesMap[name] || 0) + item.quantity
+      })
+    })
+    const topProducts = Object.entries(productSalesMap)
+      .map(([name, sales]) => ({ name, sales }))
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 5)
 
     return {
       totalSales,

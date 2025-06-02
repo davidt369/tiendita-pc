@@ -26,6 +26,46 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [relatedProducts, setRelatedProducts] = useState<any[]>([])
 
+  // Estado para el tipo de cambio
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null)
+
+  // Efecto para leer el tipo de cambio desde localStorage
+  useEffect(() => {
+    const loadExchangeRate = () => {
+      const storedRate = localStorage.getItem('exchangeRate')
+      if (storedRate) {
+        const numericRate = parseFloat(storedRate)
+        if (!isNaN(numericRate)) {
+          setExchangeRate(numericRate)
+        }
+      }
+    }
+
+    // Cargar el tipo de cambio inicial
+    loadExchangeRate()
+
+    // Escuchar cambios en localStorage (cuando se actualiza desde el admin)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'exchangeRate') {
+        loadExchangeRate()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    // También escuchar cambios en la misma pestaña usando un evento personalizado
+    const handleCustomStorageChange = () => {
+      loadExchangeRate()
+    }
+
+    window.addEventListener('exchangeRateChanged', handleCustomStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('exchangeRateChanged', handleCustomStorageChange)
+    }
+  }, [])
+
   // Cargar detalles del producto
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -302,11 +342,16 @@ export default function ProductDetailPage() {
               </div>
               <div className="text-sm text-muted-foreground">Marca: {product.marca}</div>
             </div>
-          </div>
-
-          <div className="mb-6">
-            <div className="text-3xl font-bold mb-2">${product.precio.toFixed(2)}</div>
-            <div className="flex items-center text-sm">
+          </div>          <div className="mb-6">
+            <div className="space-y-2">
+              <div className="text-3xl font-bold">${product.precio.toFixed(2)} USD</div>
+              {exchangeRate && (
+                <div className="text-2xl font-semibold text-green-600">
+                  {(product.precio * exchangeRate).toFixed(2)} Bs.
+                </div>
+              )}
+            </div>
+            <div className="flex items-center text-sm mt-3">
               <Badge
                 variant="outline"
                 className={product.stock > 0 ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}

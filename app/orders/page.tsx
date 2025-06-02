@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { OrderService } from "@/lib/services/order-service"
 
-// Tipos para los pedidos
-type OrderStatus = "processing" | "shipped" | "delivered" | "cancelled"
+// Tipos para los pedidos (adaptados al formato real)
+type OrderStatus = "pending" | "completed" | "cancelled"
 
 interface OrderItem {
   id: string | number
@@ -25,11 +26,16 @@ interface OrderItem {
 
 interface Order {
   id: string
-  date: string
-  status: OrderStatus
-  total: number
+  userId: string
   items: OrderItem[]
-  trackingNumber?: string
+  total: number
+  status: OrderStatus
+  paymentDetails: {
+    cardNumber: string
+    cardName: string
+    cardExpiry: string
+  }
+  createdAt: string
 }
 
 export default function OrdersPage() {
@@ -48,60 +54,45 @@ export default function OrdersPage() {
       router.push("/auth/login")
     }
   }, [status, router])
-
   // Cargar pedidos
   useEffect(() => {
     const fetchOrders = async () => {
-      if (status !== "authenticated") return
+      if (status !== "authenticated" || !session?.user?.email) return
 
       try {
         setIsLoading(true)
-        // En un entorno real, esto sería una llamada a la API
-        // const response = await api.get("/api/orders")
-        // setOrders(response.data)
-
-        // Simular un retraso para mostrar el estado de carga
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Datos de ejemplo
-        const mockOrders: Order[] = [
-          {
-            id: "ORD-123456",
-            date: "2023-05-15T10:30:00Z",
-            status: "delivered",
-            total: 1299.99,
-            items: [
-              { id: 1, type: "cpu", name: "Intel Core i7-13700K", price: 409.99, quantity: 1 },
-              { id: 2, type: "motherboard", name: "MSI MPG Z790 Gaming Edge WiFi", price: 369.99, quantity: 1 },
-              { id: 3, type: "ram", name: "Corsair Vengeance RGB Pro 32GB", price: 129.99, quantity: 1 },
-              { id: 4, type: "gpu", name: "NVIDIA GeForce RTX 4070 Ti", price: 799.99, quantity: 1 },
-            ],
-            trackingNumber: "TRK-987654321",
-          },
-          {
-            id: "ORD-789012",
-            date: "2023-06-22T14:45:00Z",
-            status: "shipped",
-            total: 899.99,
-            items: [
-              { id: 5, type: "cpu", name: "AMD Ryzen 7 7700X", price: 399.99, quantity: 1 },
-              { id: 6, type: "motherboard", name: "Gigabyte B650 AORUS Elite AX", price: 259.99, quantity: 1 },
-              { id: 7, type: "ram", name: "G.Skill Trident Z5 RGB 32GB", price: 179.99, quantity: 1 },
-            ],
-            trackingNumber: "TRK-123456789",
-          },
-          {
-            id: "ORD-345678",
-            date: "2023-07-10T09:15:00Z",
-            status: "processing",
-            total: 499.99,
-            items: [{ id: 8, type: "gpu", name: "AMD Radeon RX 7800 XT", price: 499.99, quantity: 1 }],
-          },
-        ]
-
-        setOrders(mockOrders)
-        setFilteredOrders(mockOrders)
+        
+        // Cargar pedidos reales del localStorage para el usuario actual
+        const userOrders = OrderService.getUserLocalOrders(session.user.email)
+        
+        // Intentar cargar también de la API si está disponible
+        try {
+          const apiOrders = await OrderService.getUserOrders()
+          // Combinar pedidos locales y de API, evitando duplicados
+          const allOrders = [...userOrders]
+          apiOrders.forEach((apiOrder: any) => {
+            const exists = allOrders.some(localOrder => localOrder.id === apiOrder.id)
+            if (!exists) {
+              allOrders.push(apiOrder)
+            }
+          })
+          // Ordenar por fecha más reciente
+          const sortedOrders = allOrders.sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          setOrders(sortedOrders)
+          setFilteredOrders(sortedOrders)
+        } catch (error) {
+          console.log("No se pudieron cargar pedidos de la API, usando localStorage")
+          // Ordenar pedidos locales por fecha
+          const sortedOrders = userOrders.sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          setOrders(sortedOrders)
+          setFilteredOrders(sortedOrders)
+        }
       } catch (error) {
+        console.error('Error al cargar pedidos:', error)
         toast({
           variant: "destructive",
           title: "Error al cargar pedidos",
@@ -113,7 +104,25 @@ export default function OrdersPage() {
     }
 
     fetchOrders()
-  }, [status, toast])
+    
+    // Escuchar cambios en localStorage
+    const handleStorageChange = () => {
+      if (session?.user?.email) {
+        const userOrders = OrderService.getUserLocalOrders(session.user.email)
+        const sortedOrders = userOrders.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        setOrders(sortedOrders)
+        setFilteredOrders(sortedOrders)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [status, session, toast])
 
   // Filtrar pedidos por búsqueda y estado
   useEffect(() => {
@@ -135,7 +144,6 @@ export default function OrdersPage() {
 
     setFilteredOrders(filtered)
   }, [orders, searchTerm, activeTab])
-
   // Función para formatear fecha
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -149,11 +157,9 @@ export default function OrdersPage() {
   // Función para obtener color de badge según estado
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
-      case "processing":
+      case "pending":
         return "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
-      case "shipped":
-        return "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
-      case "delivered":
+      case "completed":
         return "bg-green-500/10 text-green-500 hover:bg-green-500/20"
       case "cancelled":
         return "bg-red-500/10 text-red-500 hover:bg-red-500/20"
@@ -165,12 +171,10 @@ export default function OrdersPage() {
   // Función para obtener texto de estado
   const getStatusText = (status: OrderStatus) => {
     switch (status) {
-      case "processing":
+      case "pending":
         return "En procesamiento"
-      case "shipped":
-        return "Enviado"
-      case "delivered":
-        return "Entregado"
+      case "completed":
+        return "Completado"
       case "cancelled":
         return "Cancelado"
       default:
@@ -226,12 +230,10 @@ export default function OrdersPage() {
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as OrderStatus | "all")}
             className="w-full sm:w-auto"
-          >
-            <TabsList className="grid grid-cols-2 sm:grid-cols-5">
+          >            <TabsList className="grid grid-cols-2 sm:grid-cols-4">
               <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="processing">Procesando</TabsTrigger>
-              <TabsTrigger value="shipped">Enviados</TabsTrigger>
-              <TabsTrigger value="delivered">Entregados</TabsTrigger>
+              <TabsTrigger value="pending">Procesando</TabsTrigger>
+              <TabsTrigger value="completed">Completados</TabsTrigger>
               <TabsTrigger value="cancelled">Cancelados</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -248,28 +250,24 @@ export default function OrdersPage() {
         ) : (
           filteredOrders.map((order) => (
             <Card key={order.id} className="overflow-hidden">
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <CardHeader className="pb-4">                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <CardTitle className="text-lg">Pedido {order.id}</CardTitle>
-                    <CardDescription>Realizado el {formatDate(order.date)}</CardDescription>
+                    <CardTitle className="text-lg">Pedido #{order.id}</CardTitle>
+                    <CardDescription>Realizado el {formatDate(order.createdAt)}</CardDescription>
                   </div>
                   <Badge className={`mt-2 sm:mt-0 ${getStatusColor(order.status)}`} variant="outline">
                     {getStatusText(order.status)}
                   </Badge>
                 </div>
-              </CardHeader>
-              <CardContent className="pb-4">
+              </CardHeader>              <CardContent className="pb-4">
                 <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">
                     {order.items.length} {order.items.length === 1 ? "producto" : "productos"} • Total: $
                     {order.total.toFixed(2)}
                   </div>
-                  {order.trackingNumber && (
-                    <div className="text-sm">
-                      <span className="font-medium">Número de seguimiento:</span> {order.trackingNumber}
-                    </div>
-                  )}
+                  <div className="text-sm">
+                    <span className="font-medium">Estado:</span> {getStatusText(order.status)}
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end border-t pt-4">

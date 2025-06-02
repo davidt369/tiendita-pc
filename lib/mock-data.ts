@@ -288,7 +288,7 @@ export const mockData = {
       watts: 850,
       eficiencia: "80+ Gold",
       precio: 149.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://m.media-amazon.com/images/I/71Bam0yVOSS._AC_UF350,350_QL80_.jpg"
     },
     {
       id: 2,
@@ -296,7 +296,7 @@ export const mockData = {
       watts: 1000,
       eficiencia: "80+ Gold",
       precio: 199.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://m.media-amazon.com/images/I/71Bam0yVOSS._AC_UF350,350_QL80_.jpg"
     },
     {
       id: 3,
@@ -304,7 +304,7 @@ export const mockData = {
       watts: 1000,
       eficiencia: "80+ Titanium",
       precio: 299.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+            imagen_url: "https://m.media-amazon.com/images/I/71Bam0yVOSS._AC_UF350,350_QL80_.jpg"
     },
     {
       id: 4,
@@ -312,7 +312,7 @@ export const mockData = {
       watts: 750,
       eficiencia: "80+ Gold",
       precio: 139.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://m.media-amazon.com/images/I/71Bam0yVOSS._AC_UF350,350_QL80_.jpg"
     },
     {
       id: 5,
@@ -320,7 +320,7 @@ export const mockData = {
       watts: 750,
       eficiencia: "80+ Platinum",
       precio: 169.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://m.media-amazon.com/images/I/71Bam0yVOSS._AC_UF350,350_QL80_.jpg"
     },
     {
       id: 6,
@@ -328,7 +328,7 @@ export const mockData = {
       watts: 1200,
       eficiencia: "80+ Gold",
       precio: 249.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://m.media-amazon.com/images/I/71Bam0yVOSS._AC_UF350,350_QL80_.jpg"
     },
   ],
   gabinete: [
@@ -338,7 +338,7 @@ export const mockData = {
       formato_compatible: "ATX",
       max_gpu_mm: 400,
       precio: 174.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.datacont.com/web/image/product.product/2419/image_1920",
     },
     {
       id: 2,
@@ -346,7 +346,7 @@ export const mockData = {
       formato_compatible: "ATX",
       max_gpu_mm: 420,
       precio: 169.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.datacont.com/web/image/product.product/2419/image_1920",
     },
     {
       id: 3,
@@ -354,7 +354,7 @@ export const mockData = {
       formato_compatible: "ATX",
       max_gpu_mm: 467,
       precio: 159.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.datacont.com/web/image/product.product/2419/image_1920",
     },
     {
       id: 4,
@@ -362,7 +362,7 @@ export const mockData = {
       formato_compatible: "ATX",
       max_gpu_mm: 400,
       precio: 129.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.datacont.com/web/image/product.product/2419/image_1920",
     },
     {
       id: 5,
@@ -370,7 +370,7 @@ export const mockData = {
       formato_compatible: "Mini-ITX",
       max_gpu_mm: 330,
       precio: 99.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.datacont.com/web/image/product.product/2419/image_1920",
     },
     {
       id: 6,
@@ -378,7 +378,7 @@ export const mockData = {
       formato_compatible: "Mini-ITX",
       max_gpu_mm: 320,
       precio: 149.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.datacont.com/web/image/product.product/2419/image_1920",
     },
     {
       id: 7,
@@ -386,7 +386,7 @@ export const mockData = {
       formato_compatible: "Micro-ATX",
       max_gpu_mm: 315,
       precio: 109.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.datacont.com/web/image/product.product/2419/image_1920",
     },
   ],
   perifericos: [
@@ -396,7 +396,7 @@ export const mockData = {
       tipo: "Monitor",
       especificaciones: '27" 1440p 165Hz IPS',
       precio: 399.99,
-      imagen_url: "/placeholder.svg?height=64&width=64",
+      imagen_url: "https://www.lg.com/content/dam/channel/wcms/es/images/monitores/27gp850p-b_beu_eees_es_c/450.jpg",
     },
     {
       id: 2,
